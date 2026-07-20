@@ -46,3 +46,7 @@ __pycache__/
 *.pyc
 .venv/
 local_app/lyre-bridge-config.json
+/.build-venv/
+/build/.pyinstaller/
+/build/.pyinstaller-spec/
+/release/

@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import "./globals.css";
 
 const title = "原琴律桥｜电钢琴到原神原琴的智能调式映射";
-const description = "连接 MIDI 电钢琴，可视化移调、和弦冲突消解与 21 键原琴映射，并下载 Windows 伴侣脚本。";
+const description = "连接 MIDI 电钢琴，可视化移调、和弦冲突消解与 21 键原琴映射，并下载免环境安装的 Windows 桌面版。";
 
 export async function generateMetadata(): Promise<Metadata> {
   const requestHeaders = await headers();

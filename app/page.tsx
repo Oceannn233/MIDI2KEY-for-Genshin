@@ -281,8 +281,8 @@ export default function Home() {
           </div>
 
           <div className="download-stack">
-            <a className="button dark" href="/lyre-bridge-local.zip" download>
-              <span aria-hidden="true">↓</span> 下载本地一键版
+            <a className="button dark" href="https://github.com/Oceannn233/MIDI2KEY-for-Genshin/releases/latest" target="_blank" rel="noreferrer">
+              <span aria-hidden="true">↓</span> 下载 Windows 桌面版
             </a>
             <button className="text-button" type="button" onClick={exportConfig}>导出当前设置 <span>↗</span></button>
           </div>
@@ -449,7 +449,7 @@ export default function Home() {
           </div>
         </div>
         <div className="callout-actions">
-            <a className="button light" href="/lyre-bridge-local.zip" download>下载本地一键版 <span>↓</span></a>
+          <a className="button light" href="https://github.com/Oceannn233/MIDI2KEY-for-Genshin/releases/latest" target="_blank" rel="noreferrer">下载 Windows 桌面版 <span>↓</span></a>
           <button className="button ghost" type="button" onClick={exportConfig}>导出配置</button>
         </div>
       </section>
@@ -457,7 +457,7 @@ export default function Home() {
       <footer>
         <div className="brand compact-brand"><span className="brand-mark">♬</span><span><strong>原琴律桥</strong><small>LYRE BRIDGE</small></span></div>
         <p>为 21 键原琴设计的调式映射与实时练习工具</p>
-        <span>{hasPlayed ? "本次练习已捕获演示输入" : "下载本地版后连接你的电钢琴"}</span>
+        <span>{hasPlayed ? "本次练习已捕获演示输入" : "下载桌面版后连接你的电钢琴"}</span>
       </footer>
     </main>
   );

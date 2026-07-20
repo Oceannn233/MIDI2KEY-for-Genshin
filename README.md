@@ -1,98 +1,82 @@
-# vinext-starter
+# MIDI2KEY for Genshin
 
-A clean full-stack starter running on
-[vinext](https://github.com/cloudflare/vinext), with optional Cloudflare D1 and
-Drizzle support.
+[简体中文](README.zh-CN.md) · [Latest release](https://github.com/Oceannn233/MIDI2KEY-for-Genshin/releases/latest)
 
-## Prerequisites
+Turn a Windows MIDI digital piano into a visual, harmony-aware controller for Genshin Impact's 21-key instruments. The app transposes a selected source key into the playable C-major layout, resolves key collisions, shows every mapped note live, and sends game keys only after you explicitly enable output.
 
-- Node.js `>=22.13.0`
+![MIDI2KEY for Genshin interface](public/og.png)
 
-## Quick Start
+## Download
 
-```bash
-npm install
-npm run dev
+Open the [latest release](https://github.com/Oceannn233/MIDI2KEY-for-Genshin/releases/latest):
+
+- `MIDI2KEY-for-Genshin-Setup-v1.0.0.exe` — recommended one-click Windows installer.
+- `MIDI2KEY-for-Genshin.exe` — portable single-file app; no installation required.
+
+Python, Node.js, and package installation are not required for either release asset. Windows may show a SmartScreen warning because community builds are not code-signed.
+
+## Quick start
+
+1. Close DAWs, old MIDI scripts, and browser tabs that previously opened Web MIDI.
+2. Connect the digital piano by USB and start MIDI2KEY for Genshin.
+3. Select the MIDI device, source tonic, mode, mapping strategy, and register.
+4. Confirm the live visualization, then enable **Game output**.
+5. Focus Genshin Impact and play. Use **Panic release** if any key remains held.
+
+The controller binds only to `127.0.0.1`. MIDI events and settings are not sent to a cloud service.
+
+## Mapping model
+
+Genshin's lyre exposes three octaves of the C-major scale, mapped to `Z–M`, `A–J`, and `Q–U`. This app first converts scale degrees from the selected key/mode, then fits them into those 21 notes.
+
+- **Harmony-aware** groups near-simultaneous notes, preserves chord shape, chooses one octave for the group, and assigns unique playable notes to avoid collisions.
+- **Melody-first** chooses the nearest playable pitch independently, which feels immediate for single-note lines.
+- **Strict diatonic** drops notes that cannot be represented without altering their pitch class.
+
+Chromatic music cannot be represented perfectly on a diatonic 21-key instrument. The UI therefore exposes the compromise instead of hiding it: altered notes, collision avoidance, octave movement, and dropped notes are visible while playing.
+
+## MIDI port troubleshooting
+
+On Windows, a MIDI input can be exclusive. If the app reports `MidiInWinMM::openPort`, close every other program or browser tab using that keyboard, wait two seconds, then click **Reconnect**. The browser UI never opens Web MIDI; the local app is the sole device owner.
+
+## Run from source
+
+Requirements: Windows 10/11 and Python 3.11+.
+
+```powershell
+cd local_app
+.\run-local.bat
+```
+
+The script creates an isolated environment and opens `http://127.0.0.1:17321`.
+
+## Build the Windows release
+
+```powershell
+.\scripts\build-windows.ps1
+```
+
+Outputs are written to `release/windows/`. The build script bundles Python and all runtime dependencies with PyInstaller, then creates the installer with Inno Setup 6. Tagged GitHub pushes also run the included release workflow.
+
+## Tests
+
+```powershell
+cd local_app
+.\.venv\Scripts\python.exe -m unittest discover -s tests -v
+cd ..
+node --experimental-strip-types --test tests\mapping-algorithm.test.mjs
 npm run build
 ```
 
-This starter does not use `wrangler.jsonc`.
+## Project layout
 
-## Included Shape
+- `local_app/` — MIDI engine, local server, desktop entry point, and product UI.
+- `app/` — optional browser showcase/source download page.
+- `scripts/` and `build/windows/` — repeatable Windows packaging.
+- `.github/workflows/` — tagged release automation.
 
-- edit site code under `app/`
-- `.openai/hosting.json` declares optional Sites D1 and R2 bindings
-- `vite.config.ts` simulates declared bindings for local development
-- `db/schema.ts` starts intentionally empty
-- `examples/d1/` contains an optional D1 example surface
-- `drizzle.config.ts` supports local migration generation when needed
+## Safety and scope
 
-## Workspace Auth Headers
+This project emits ordinary keyboard events. It does not inject into the game process, read game memory, or automate songs. Use it responsibly and review the applicable game rules yourself.
 
-OpenAI workspace sites can read the current user's email from
-`oai-authenticated-user-email`.
-
-SIWC-authenticated workspace sites may also receive
-`oai-authenticated-user-full-name` when the user's SIWC profile has a non-empty
-`name` claim. The full-name value is percent-encoded UTF-8 and is accompanied by
-`oai-authenticated-user-full-name-encoding: percent-encoded-utf-8`.
-
-Treat the full name as optional and fall back to email when it is absent:
-
-```tsx
-import { headers } from "next/headers";
-
-export default async function Home() {
-  const requestHeaders = await headers();
-  const email = requestHeaders.get("oai-authenticated-user-email");
-  const encodedFullName = requestHeaders.get("oai-authenticated-user-full-name");
-  const fullName =
-    encodedFullName &&
-    requestHeaders.get("oai-authenticated-user-full-name-encoding") ===
-      "percent-encoded-utf-8"
-      ? decodeURIComponent(encodedFullName)
-      : null;
-
-  const displayName = fullName ?? email;
-  // ...
-}
-```
-
-## Optional Dispatch-Owned ChatGPT Sign-In
-
-Import the ready-to-use helpers from `app/chatgpt-auth.ts` when the site needs
-optional or required ChatGPT sign-in:
-
-- Use `getChatGPTUser()` for optional signed-in UI.
-- Use `requireChatGPTUser(returnTo)` for server-rendered pages that should send
-  anonymous visitors through Sign in with ChatGPT.
-- Use `chatGPTSignInPath(returnTo)` and `chatGPTSignOutPath(returnTo)` for
-  browser links or actions.
-- Pass a same-origin relative `returnTo` path for the destination after sign-in
-  or sign-out. The helper validates and safely encodes it.
-- Mark protected pages with `export const dynamic = "force-dynamic"` because
-  they depend on per-request identity headers.
-
-Dispatch owns `/signin-with-chatgpt`, `/signout-with-chatgpt`, `/callback`, the
-OAuth cookies, and identity header injection. Do not implement app routes for
-those reserved paths. Routes that do not import and call the helper remain
-anonymous-compatible.
-
-SIWC establishes identity only; it does not prove workspace membership. Use the
-Sites hosting platform's access policy controls for workspace-wide restrictions,
-or enforce explicit server-side membership or allowlist checks.
-
-Use SIWC for account pages, user-specific dashboards, saved records, and write
-actions tied to the current ChatGPT user. Leave public content anonymous.
-
-## Useful Commands
-
-- `npm run dev`: start local development
-- `npm run build`: verify the vinext build output
-- `npm test`: build the starter and verify its rendered loading skeleton
-- `npm run db:generate`: generate Drizzle migrations after schema changes
-
-## Learn More
-
-- [vinext Documentation](https://github.com/cloudflare/vinext)
-- [Drizzle D1 Guide](https://orm.drizzle.team/docs/get-started/d1-new)
+Released under the [MIT License](LICENSE).

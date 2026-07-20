@@ -6,19 +6,36 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import os
+import socket
 import sys
+import threading
 import webbrowser
 from pathlib import Path
-from typing import Dict, Optional, Set
+from typing import Dict, Optional
 
 from aiohttp import WSMsgType, web
 
 from lyre_core import LyreEngine, MapperConfig
 
 
+APP_NAME = "MIDI2KEY for Genshin"
+APP_VERSION = "1.0.0"
 APP_DIR = Path(__file__).resolve().parent
 WEB_DIR = APP_DIR / "web"
-CONFIG_PATH = APP_DIR / "lyre-bridge-config.json"
+IS_FROZEN = bool(getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"))
+
+
+def resolve_config_path() -> Path:
+    """Keep source settings beside the script and packaged settings in AppData."""
+    if not IS_FROZEN:
+        return APP_DIR / "lyre-bridge-config.json"
+    roaming = os.environ.get("APPDATA")
+    base = Path(roaming) if roaming else Path.home() / "AppData" / "Roaming"
+    return base / "MIDI2KEY-for-Genshin" / "config.json"
+
+
+CONFIG_PATH = resolve_config_path()
 
 
 class NullKeyboard:
@@ -40,6 +57,7 @@ def load_config() -> MapperConfig:
 
 
 def save_config(config: MapperConfig) -> None:
+    CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
     temporary = CONFIG_PATH.with_suffix(".json.tmp")
     temporary.write_text(json.dumps(config.to_dict(), ensure_ascii=False, indent=2), encoding="utf-8")
     temporary.replace(CONFIG_PATH)
@@ -146,7 +164,11 @@ class MidiPortManager:
 async def make_snapshot(app: web.Application) -> Dict[str, object]:
     value = app["engine"].snapshot()
     value["midi"] = app["ports"].snapshot()
-    value["server"] = {"local_only": True, "version": "3.0.0"}
+    value["server"] = {
+        "local_only": True,
+        "desktop": IS_FROZEN,
+        "version": APP_VERSION,
+    }
     return value
 
 
@@ -242,25 +264,13 @@ def make_parser() -> argparse.ArgumentParser:
     parser.add_argument("--port", type=int, default=17321, help="本地网页端口，默认 17321")
     parser.add_argument("--device", help="优先连接的 MIDI 设备完整名称")
     parser.add_argument("--no-browser", action="store_true", help="启动后不自动打开浏览器")
+    parser.add_argument("--desktop", action="store_true", help="使用桌面窗口承载控制台")
+    parser.add_argument("--serve-only", action="store_true", help="只启动本地服务，用于测试和调试")
     parser.add_argument("--visual-only", action="store_true", help="只可视化，不发送 Windows 游戏按键")
     return parser
 
 
-def main() -> int:
-    args = make_parser().parse_args()
-    try:
-        import mido
-        mido.set_backend("mido.backends.rtmidi")
-        if args.visual_only:
-            keyboard = NullKeyboard()
-        else:
-            from pynput.keyboard import Controller
-            keyboard = Controller()
-    except ImportError as error:
-        print(f"缺少依赖：{error.name}")
-        print("请双击 run-local.bat，让它自动安装独立环境。")
-        return 2
-
+def create_application(args: argparse.Namespace, mido: object, keyboard: object) -> web.Application:
     app = web.Application()
     app["engine"] = LyreEngine(load_config(), keyboard)
     app["ports"] = MidiPortManager(mido, app["engine"])
@@ -271,13 +281,105 @@ def main() -> int:
     app.router.add_get("/api/health", health_handler)
     app.router.add_get("/ws", websocket_handler)
     app.router.add_static("/assets/", WEB_DIR, show_index=False)
+    return app
 
+
+def find_desktop_port(preferred: int) -> int:
+    """Prefer the documented port, but avoid failing when another copy uses it."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+        try:
+            probe.bind(("127.0.0.1", preferred))
+        except OSError:
+            probe.bind(("127.0.0.1", 0))
+        return int(probe.getsockname()[1])
+
+
+class LocalServerThread(threading.Thread):
+    """Run aiohttp behind the native desktop window and shut down cleanly."""
+
+    def __init__(self, app: web.Application, port: int) -> None:
+        super().__init__(name="midi2key-local-server", daemon=True)
+        self.app = app
+        self.port = port
+        self.loop = asyncio.new_event_loop()
+        self.ready = threading.Event()
+        self.runner: Optional[web.AppRunner] = None
+        self.error: Optional[BaseException] = None
+
+    def run(self) -> None:
+        asyncio.set_event_loop(self.loop)
+        try:
+            self.runner = web.AppRunner(self.app)
+            self.loop.run_until_complete(self.runner.setup())
+            site = web.TCPSite(self.runner, "127.0.0.1", self.port)
+            self.loop.run_until_complete(site.start())
+            self.ready.set()
+            self.loop.run_forever()
+        except BaseException as error:
+            self.error = error
+            self.ready.set()
+        finally:
+            if self.runner is not None:
+                self.loop.run_until_complete(self.runner.cleanup())
+            self.loop.close()
+
+    def stop(self) -> None:
+        if self.loop.is_running():
+            self.loop.call_soon_threadsafe(self.loop.stop)
+        self.join(timeout=8)
+
+
+def show_fatal_error(message: str) -> None:
+    if IS_FROZEN and sys.platform == "win32":
+        try:
+            import ctypes
+
+            ctypes.windll.user32.MessageBoxW(0, message, APP_NAME, 0x10)
+            return
+        except Exception:
+            pass
+    print(message)
+
+
+def run_desktop(app: web.Application, requested_port: int) -> int:
+    port = find_desktop_port(requested_port)
+    url = f"http://127.0.0.1:{port}"
+    server = LocalServerThread(app, port)
+    server.start()
+    if not server.ready.wait(timeout=12) or server.error is not None:
+        show_fatal_error(f"本地服务启动失败：{server.error or '启动超时'}")
+        server.stop()
+        return 1
+
+    try:
+        import webview
+
+        webview.create_window(
+            f"{APP_NAME} · 原琴律桥",
+            url=url,
+            width=1440,
+            height=900,
+            min_size=(980, 680),
+            background_color="#F4F1E9",
+        )
+        webview.start(debug=False)
+    except Exception as error:
+        show_fatal_error(f"桌面窗口启动失败：{error}")
+        return 1
+    finally:
+        server.stop()
+        app["engine"].panic("桌面程序退出")
+    return 0
+
+
+def run_browser_server(app: web.Application, args: argparse.Namespace) -> int:
     url = f"http://127.0.0.1:{args.port}"
+
     print("\n原琴律桥本地控制台")
     print(f"  地址：{url}")
     print("  仅绑定本机，不会发布到互联网。")
     print("  网页关闭不会导致按键卡住；Ctrl+C 会执行紧急释放。\n")
-    if not args.no_browser:
+    if not args.no_browser and not args.serve_only:
         asyncio.get_event_loop().call_later(1.0, lambda: webbrowser.open(url))
     try:
         web.run_app(app, host="127.0.0.1", port=args.port, print=None)
@@ -287,6 +389,29 @@ def main() -> int:
     finally:
         app["engine"].panic("程序退出")
     return 0
+
+
+def main() -> int:
+    args = make_parser().parse_args()
+    try:
+        import mido
+
+        mido.set_backend("mido.backends.rtmidi")
+        if args.visual_only:
+            keyboard = NullKeyboard()
+        else:
+            from pynput.keyboard import Controller
+
+            keyboard = Controller()
+    except ImportError as error:
+        show_fatal_error(f"缺少依赖：{error.name}")
+        return 2
+
+    app = create_application(args, mido, keyboard)
+    desktop_mode = (IS_FROZEN or args.desktop) and not args.serve_only
+    if desktop_mode:
+        return run_desktop(app, args.port)
+    return run_browser_server(app, args)
 
 
 if __name__ == "__main__":
