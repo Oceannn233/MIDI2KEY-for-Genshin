@@ -66,14 +66,15 @@ cd local_app
 cd local_app
 .\.venv\Scripts\python.exe -m unittest discover -s tests -v
 cd ..
-node --experimental-strip-types --test tests\mapping-algorithm.test.mjs
+npm test
+npm run lint
 npm run build
 ```
 
 ## 项目结构
 
 - `local_app/`：MIDI 映射核心、本地服务、桌面入口和实际产品界面。
-- `app/`：可选的网页介绍及源码下载页。
+- `app/`：可选的网页介绍及 Release 下载页。
 - `scripts/`、`build/windows/`：可复现的 Windows 打包配置。
 - `.github/workflows/`：版本标签自动发布流程。
 

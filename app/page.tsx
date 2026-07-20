@@ -133,12 +133,16 @@ export default function Home() {
   }, []);
 
   const tonicAnchor = 60 + signedPitchDistance(0, sourceTonic);
-  const demoNotes = mode === "major"
-    ? [tonicAnchor, tonicAnchor + 4, tonicAnchor + 7]
-    : [tonicAnchor, tonicAnchor + 3, tonicAnchor + 7];
-  const liveNotes = [...activeNotes].sort((a, b) => a - b);
-  const displayNotes = liveNotes.length ? liveNotes : demoNotes;
-  const mapping = useMemo(() => mapChord(displayNotes, config), [displayNotes.join(","), config]);
+  const demoNotes = useMemo(() => (
+    mode === "major"
+      ? [tonicAnchor, tonicAnchor + 4, tonicAnchor + 7]
+      : [tonicAnchor, tonicAnchor + 3, tonicAnchor + 7]
+  ), [mode, tonicAnchor]);
+  const liveNotes = useMemo(() => [...activeNotes].sort((a, b) => a - b), [activeNotes]);
+  const displayNotes = useMemo(() => (
+    liveNotes.length ? liveNotes : demoNotes
+  ), [demoNotes, liveNotes]);
+  const mapping = useMemo(() => mapChord(displayNotes, config), [displayNotes, config]);
   const sourceNames = sourceScaleNames(config);
   const targetNames = targetScaleNames(config);
   const inputHighlights = new Set(displayNotes);

@@ -19,7 +19,6 @@ const elements = Object.fromEntries([
 ].map((id) => [id, document.getElementById(id)]));
 
 let socket = null;
-let currentState = null;
 let applyingState = false;
 let reconnectTimer = null;
 let configTimer = null;
@@ -187,7 +186,6 @@ function renderMapping(state) {
 }
 
 function renderState(state) {
-  currentState = state;
   applyConfig(state.config);
   renderConnection(state);
   renderOutput(state);

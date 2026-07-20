@@ -66,14 +66,15 @@ Outputs are written to `release/windows/`. The build script bundles Python and a
 cd local_app
 .\.venv\Scripts\python.exe -m unittest discover -s tests -v
 cd ..
-node --experimental-strip-types --test tests\mapping-algorithm.test.mjs
+npm test
+npm run lint
 npm run build
 ```
 
 ## Project layout
 
 - `local_app/` — MIDI engine, local server, desktop entry point, and product UI.
-- `app/` — optional browser showcase/source download page.
+- `app/` — optional browser showcase and release download page.
 - `scripts/` and `build/windows/` — repeatable Windows packaging.
 - `.github/workflows/` — tagged release automation.
 
