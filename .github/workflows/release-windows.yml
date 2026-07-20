@@ -36,4 +36,4 @@ jobs:
           if ($LASTEXITCODE -ne 0) {
             gh release create $tag --title "MIDI2KEY for Genshin $tag" --notes $notes
           }
-          gh release upload $tag release/windows/*.exe --clobber
+          gh release upload $tag release/windows/*.exe release/windows/SHA256SUMS.txt --clobber

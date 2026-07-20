@@ -61,4 +61,13 @@ if (-not $SkipInstaller) {
     }
 }
 
+$checksumPath = Join-Path $releaseDir "SHA256SUMS.txt"
+$checksumLines = Get-ChildItem -LiteralPath $releaseDir -Filter "*.exe" |
+    Sort-Object Name |
+    ForEach-Object {
+        $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $_.FullName).Hash.ToLowerInvariant()
+        "$hash  $($_.Name)"
+    }
+[System.IO.File]::WriteAllLines($checksumPath, $checksumLines, [System.Text.UTF8Encoding]::new($false))
+
 Get-ChildItem -LiteralPath $releaseDir -Filter "*.exe" | Select-Object Name, Length, LastWriteTime
