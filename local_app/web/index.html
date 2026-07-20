@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+    <title>原琴律桥 · 本地控制台</title>
+    <link rel="stylesheet" href="/assets/style.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
+        <div class="brand">
+          <span class="brand-mark">♬</span>
+          <span><strong>原琴律桥</strong><small>LOCAL LYRE BRIDGE</small></span>
+        </div>
+        <div class="top-actions">
+          <span class="local-badge">仅在本机运行 · 127.0.0.1</span>
+          <button id="panicButton" class="panic-button" type="button">紧急释放全部按键</button>
+        </div>
+      </header>
+
+      <section class="connection-bar">
+        <div class="connection-title">
+          <span id="connectionDot" class="dot waiting"></span>
+          <div><strong id="connectionTitle">正在连接本地服务</strong><small id="connectionDetail">请保持启动窗口运行</small></div>
+        </div>
+        <div class="device-controls">
+          <label for="deviceSelect">MIDI 输入</label>
+          <select id="deviceSelect" aria-label="MIDI 输入设备"><option value="">正在扫描…</option></select>
+          <button id="refreshButton" class="icon-button" type="button" title="刷新设备">↻</button>
+          <button id="retryButton" class="soft-button" type="button">重新连接</button>
+        </div>
+        <label class="output-switch">
+          <span><strong>游戏输出</strong><small id="outputHint">当前只可视化，不发送按键</small></span>
+          <input id="outputToggle" type="checkbox" />
+          <i></i>
+        </label>
+      </section>
+
+      <section id="errorBanner" class="error-banner" hidden>
+        <span>!</span>
+        <div><strong id="errorTitle">MIDI 端口暂不可用</strong><p id="errorText"></p><code id="technicalError"></code></div>
+        <button id="errorRetryButton" type="button">关闭占用程序后重试</button>
+      </section>
+
+      <section class="workspace">
+        <aside class="controls">
+          <div class="section-label"><span>01</span><div><small>实时参数</small><strong>映射规则</strong></div></div>
+
+          <label class="field-label" for="tonicSelect">原曲主音</label>
+          <select id="tonicSelect">
+            <option value="0">C</option><option value="1">D♭ / C♯</option><option value="2">D</option>
+            <option value="3">E♭ / D♯</option><option value="4">E</option><option value="5">F</option>
+            <option value="6">G♭ / F♯</option><option value="7">G</option><option value="8">A♭ / G♯</option>
+            <option value="9">A</option><option value="10">B♭ / A♯</option><option value="11">B</option>
+          </select>
+
+          <fieldset>
+            <legend>调式</legend>
+            <div class="segmented two">
+              <label><input type="radio" name="mode" value="major" checked /><span>大调</span></label>
+              <label><input type="radio" name="mode" value="minor" /><span>小调</span></label>
+            </div>
+          </fieldset>
+
+          <label id="minorPreserveRow" class="check-row" hidden>
+            <span><strong>保留小调听感</strong><small>落到 A 小调，仍使用 C 大调白键</small></span>
+            <input id="preserveMinor" type="checkbox" checked />
+          </label>
+
+          <fieldset>
+            <legend>冲突处理策略</legend>
+            <div class="strategy-list">
+              <label><input type="radio" name="strategy" value="harmony" checked /><span><i></i><strong>和声优先</strong><small>整体保形</small></span></label>
+              <label><input type="radio" name="strategy" value="melody" /><span><i></i><strong>旋律优先</strong><small>音级稳定</small></span></label>
+              <label><input type="radio" name="strategy" value="strict" /><span><i></i><strong>严格调内</strong><small>变化音静音</small></span></label>
+            </div>
+            <p id="strategyHelp" class="help">先尝试和弦整体平移，再做无冲突声部分配。</p>
+          </fieldset>
+
+          <div class="range-control">
+            <label for="registerRange"><span>手动八度</span><strong id="registerValue">原位</strong></label>
+            <input id="registerRange" type="range" min="-2" max="2" step="1" value="0" />
+            <div><span>-2</span><span>原位</span><span>+2</span></div>
+          </div>
+
+          <div class="range-control">
+            <label for="windowRange"><span>和弦识别窗口</span><strong id="windowValue">18 ms</strong></label>
+            <input id="windowRange" type="range" min="4" max="80" step="1" value="18" />
+            <p>快速弹奏用 12–20 ms；慢琶音可适当增加。</p>
+          </div>
+
+          <div class="local-note">
+            <strong>参数立即生效</strong>
+            <p>修改设置时会先释放所有游戏按键，避免旧映射卡键；设置自动保存在本地。</p>
+          </div>
+        </aside>
+
+        <section class="stage">
+          <div class="stage-head">
+            <div>
+              <span id="liveDot" class="dot"></span>
+              <strong id="stageStatus">等待 MIDI 输入</strong>
+              <small id="stageSub">弹下电钢琴后会在这里显示完整执行流</small>
+            </div>
+            <div class="chips"><span id="targetChip">D♭ 大调 → C 大调</span><span id="sustainChip">延音踏板：抬起</span></div>
+          </div>
+
+          <div class="keyboard-card">
+            <div class="card-title"><strong>电钢琴输入</strong><small>MIDI C3–B5 · 黑键完整显示</small></div>
+            <div id="inputPiano" class="piano" aria-label="MIDI 输入键盘"><div id="whiteKeys" class="white-keys"></div><div id="blackKeys"></div></div>
+          </div>
+
+          <div class="pipeline">
+            <div><i>1</i><span>调式归一</span><strong id="transposeValue">-1 半音</strong></div><b>›</b>
+            <div><i>2</i><span>整体八度</span><strong id="octaveValue">0 八度</strong></div><b>›</b>
+            <div><i>3</i><span>和弦分配</span><strong id="conflictValue">0 个冲突</strong></div><b>›</b>
+            <div><i>4</i><span>Windows 输出</span><strong id="pipelineOutput">已关闭</strong></div>
+          </div>
+
+          <div class="keyboard-card output-card">
+            <div class="card-title"><strong>原神原琴输出</strong><small>低音 Z–M · 中音 A–J · 高音 Q–U</small></div>
+            <div id="lyreKeys" class="lyre-keys" aria-label="21 键原琴输出"></div>
+          </div>
+
+          <div class="readout-card">
+            <div class="card-title"><strong>当前映射解释</strong><small id="eventMeta">尚未收到音符</small></div>
+            <div id="assignmentList" class="assignment-list">
+              <div class="empty-state"><span>⌁</span><p>连接 Roland 后弹一个和弦，系统会逐音解释为什么映射到对应原琴键。</p></div>
+            </div>
+          </div>
+        </section>
+      </section>
+
+      <footer>
+        <span>浏览器不接触 MIDI 端口 · Python 是唯一设备持有者</span>
+        <strong id="footerStatus">本地服务连接中</strong>
+        <span>关闭启动窗口时会自动释放全部按键</span>
+      </footer>
+    </main>
+    <div id="toast" class="toast" hidden></div>
+    <script src="/assets/app.js" defer></script>
+  </body>
+</html>
+

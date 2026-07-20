@@ -35,15 +35,6 @@ const COMPUTER_PIANO: Record<string, number> = {
 
 const SCALE_DEGREES = ["1 · 主音", "2 · 上主音", "3 · 中音", "4 · 下属音", "5 · 属音", "6 · 下中音", "7 · 导音"];
 
-type MidiInputLike = {
-  name?: string | null;
-  onmidimessage: ((event: { data: Uint8Array }) => void) | null;
-};
-
-type MidiAccessLike = {
-  inputs: { values: () => IterableIterator<MidiInputLike> };
-};
-
 function pianoPosition(note: number) {
   const whiteBefore = WHITE_MIDI_NOTES.filter((white) => white < note).length;
   return `${(whiteBefore / WHITE_MIDI_NOTES.length) * 100}%`;
@@ -70,7 +61,7 @@ export default function Home() {
   const [activeNotes, setActiveNotes] = useState<Set<number>>(new Set());
   const [hasPlayed, setHasPlayed] = useState(false);
   const [midiStatus, setMidiStatus] = useState<"idle" | "connecting" | "connected" | "error">("idle");
-  const [midiMessage, setMidiMessage] = useState("尚未连接 MIDI");
+  const [midiMessage, setMidiMessage] = useState("本地控制台未打开");
   const sustainedNotes = useRef<Set<number>>(new Set());
   const sustainDown = useRef(false);
 
@@ -131,54 +122,15 @@ export default function Home() {
     };
   }, [startNote, stopNote]);
 
-  const connectMidi = useCallback(async () => {
-    const midiNavigator = navigator as Navigator & {
-      requestMIDIAccess?: () => Promise<MidiAccessLike>;
-    };
-    if (!midiNavigator.requestMIDIAccess) {
-      setMidiStatus("error");
-      setMidiMessage("当前浏览器不支持 Web MIDI，请使用 Chrome / Edge");
-      return;
-    }
-
+  const connectMidi = useCallback(() => {
     setMidiStatus("connecting");
-    setMidiMessage("正在寻找电钢琴…");
-    try {
-      const access = await midiNavigator.requestMIDIAccess();
-      const inputs = Array.from(access.inputs.values());
-      if (!inputs.length) {
-        setMidiStatus("error");
-        setMidiMessage("没有发现 MIDI 输入，请检查 USB 连接");
-        return;
-      }
-      for (const input of inputs) {
-        input.onmidimessage = (event) => {
-          const [status = 0, data1 = 0, data2 = 0] = Array.from(event.data);
-          const command = status & 0xf0;
-          if (command === 0x90 && data2 > 0) startNote(data1);
-          if (command === 0x80 || (command === 0x90 && data2 === 0)) stopNote(data1);
-          if (command === 0xb0 && data1 === 64) {
-            const nextSustain = data2 >= 64;
-            sustainDown.current = nextSustain;
-            if (!nextSustain) {
-              const releasing = new Set(sustainedNotes.current);
-              sustainedNotes.current.clear();
-              setActiveNotes((current) => {
-                const next = new Set(current);
-                for (const note of releasing) next.delete(note);
-                return next;
-              });
-            }
-          }
-        };
-      }
-      setMidiStatus("connected");
-      setMidiMessage(inputs.length === 1 ? inputs[0].name || "MIDI 已连接" : `已监听 ${inputs.length} 个 MIDI 输入`);
-    } catch {
-      setMidiStatus("error");
-      setMidiMessage("MIDI 授权未完成，可重新连接");
-    }
-  }, [startNote, stopNote]);
+    setMidiMessage("正在打开 127.0.0.1:17321…");
+    window.open("http://127.0.0.1:17321", "_blank", "noopener,noreferrer");
+    window.setTimeout(() => {
+      setMidiStatus("idle");
+      setMidiMessage("由本地 Python 独占 MIDI 端口");
+    }, 900);
+  }, []);
 
   const tonicAnchor = 60 + signedPitchDistance(0, sourceTonic);
   const demoNotes = mode === "major"
@@ -238,7 +190,7 @@ export default function Home() {
           </span>
           <button className="button primary" type="button" onClick={connectMidi} disabled={midiStatus === "connecting"}>
             <span aria-hidden="true">⌁</span>
-            {midiStatus === "connected" ? "重新扫描" : "连接电钢琴"}
+            打开本地控制台
           </button>
         </div>
       </header>
@@ -248,7 +200,7 @@ export default function Home() {
           <p className="eyebrow"><span /> 不是“就近吸附”，是和弦级重编配</p>
           <h1>弹你熟悉的调，<br /><em>落在原琴的白键上。</em></h1>
           <p className="hero-copy">
-            先把调内音按音级无损移调，再让整组和弦共享一次八度决策；变化音由无冲突分配器处理，不再让两个音抢同一个键。
+            本地 Python 独占电钢琴端口，网页只负责改参数和显示映射；这样不会再出现浏览器与脚本争抢 Roland 端口的问题。
           </p>
         </div>
         <div className="hero-route" aria-label="当前映射方向">
@@ -329,8 +281,8 @@ export default function Home() {
           </div>
 
           <div className="download-stack">
-            <a className="button dark" href="/midi2key_v2.py" download>
-              <span aria-hidden="true">↓</span> 下载原神伴侣脚本
+            <a className="button dark" href="/lyre-bridge-local.zip" download>
+              <span aria-hidden="true">↓</span> 下载本地一键版
             </a>
             <button className="text-button" type="button" onClick={exportConfig}>导出当前设置 <span>↗</span></button>
           </div>
@@ -492,12 +444,12 @@ export default function Home() {
         <div>
           <span className="callout-mark">⌘</span>
           <div>
-            <p>浏览器负责看懂与练习，伴侣脚本负责把键送进游戏</p>
-            <h2>网页不能直接控制 Windows 全局按键，Python 伴侣会完成最后一步。</h2>
+            <p>一个本地地址，同时完成参数控制、可视化与游戏送键</p>
+            <h2>双击启动后，所有操作都在本地网页里完成。</h2>
           </div>
         </div>
         <div className="callout-actions">
-          <a className="button light" href="/midi2key_v2.py" download>下载 v2 脚本 <span>↓</span></a>
+            <a className="button light" href="/lyre-bridge-local.zip" download>下载本地一键版 <span>↓</span></a>
           <button className="button ghost" type="button" onClick={exportConfig}>导出配置</button>
         </div>
       </section>
@@ -505,9 +457,8 @@ export default function Home() {
       <footer>
         <div className="brand compact-brand"><span className="brand-mark">♬</span><span><strong>原琴律桥</strong><small>LYRE BRIDGE</small></span></div>
         <p>为 21 键原琴设计的调式映射与实时练习工具</p>
-        <span>{hasPlayed ? "本次练习已捕获 MIDI 输入" : "准备好后，连接你的电钢琴"}</span>
+        <span>{hasPlayed ? "本次练习已捕获演示输入" : "下载本地版后连接你的电钢琴"}</span>
       </footer>
     </main>
   );
 }
-

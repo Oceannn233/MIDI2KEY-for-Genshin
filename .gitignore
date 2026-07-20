@@ -44,3 +44,5 @@ next-env.d.ts
 # Python companion build artifacts
 __pycache__/
 *.pyc
+.venv/
+local_app/lyre-bridge-config.json
