@@ -50,3 +50,4 @@ local_app/lyre-bridge-config.json
 /build/.pyinstaller/
 /build/.pyinstaller-spec/
 /release/
+/tmp/

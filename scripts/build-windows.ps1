@@ -17,6 +17,7 @@ if (-not (Test-Path -LiteralPath $venvPython)) {
 
 & $venvPython -m pip install --disable-pip-version-check --upgrade pip
 & $venvPython -m pip install --disable-pip-version-check -r (Join-Path $localApp "requirements-build.txt")
+& $venvPython (Join-Path $projectRoot "scripts\make-icon.py")
 
 New-Item -ItemType Directory -Force -Path $releaseDir | Out-Null
 
@@ -33,6 +34,7 @@ $pyInstallerArgs = @(
     "--add-data", ((Join-Path $localApp "web") + ";web"),
     "--collect-all", "webview",
     "--hidden-import", "mido.backends.rtmidi",
+    "--icon", (Join-Path $projectRoot "assets\app-icon.ico"),
     "--version-file", (Join-Path $projectRoot "build\windows\version_info.txt"),
     (Join-Path $localApp "lyre_bridge_server.py")
 )

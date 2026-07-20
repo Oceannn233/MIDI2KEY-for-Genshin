@@ -1,5 +1,7 @@
 # MIDI2KEY for Genshin
 
+<p align="center"><img src="assets/app-icon.png" width="144" alt="MIDI2KEY for Genshin app icon" /></p>
+
 [简体中文](README.zh-CN.md) · [Latest release](https://github.com/Oceannn233/MIDI2KEY-for-Genshin/releases/latest)
 
 Turn a Windows MIDI digital piano into a visual, harmony-aware controller for Genshin Impact's 21-key instruments. The app transposes a selected source key into the playable C-major layout, resolves key collisions, shows every mapped note live, and sends game keys only after you explicitly enable output.

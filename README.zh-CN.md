@@ -1,5 +1,7 @@
 # MIDI2KEY for Genshin
 
+<p align="center"><img src="assets/app-icon.png" width="144" alt="MIDI2KEY for Genshin 应用图标" /></p>
+
 [English](README.md) · [下载最新版](https://github.com/Oceannn233/MIDI2KEY-for-Genshin/releases/latest)
 
 这是一个面向 Windows 的 MIDI 电钢琴到《原神》21 键乐器映射工具。它会把你选择的原调移调到原琴可演奏的 C 大调键位，科学处理和弦按键冲突，实时显示“输入音符 → 映射音符 → 游戏按键”，并且只有在你主动开启输出后才向游戏发送按键。
